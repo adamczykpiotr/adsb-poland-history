@@ -10,14 +10,15 @@ from adsb_poland_history.parsing.entry_parser import EntryParser
 from adsb_poland_history.sourcing.adsb_globe_history import AdsbGlobeHistory
 
 
-def handle_file(file_path: Path, output_dir: Path):
-    parsed = EntryParser.parse_file(file_path)
-    file_path.unlink(missing_ok=True)
+def process_chunk(file_paths: list[Path], output_dir: Path):
+    for file_path in file_paths:
+        parsed = EntryParser.parse_file(file_path)
+        file_path.unlink(missing_ok=True)
 
-    if parsed is None:
-        return
+        if parsed is None:
+            continue
 
-    Filesystem.save_entry(parsed, parsed[EntryParser.ICAO_KEY], output_dir)
+        Filesystem.save_entry(parsed, parsed[EntryParser.ICAO_KEY], output_dir)
 
 
 def main(date: str, threads: int):
@@ -43,7 +44,6 @@ def main(date: str, threads: int):
     print(f"Downloading source files for date {date}...")
     Downloader.download_and_decompress_tar(day_source, source_workdir)
 
-    # Parse files concurrently (i want $threads processing files)
     traces_path = source_workdir / "traces"
     files = list(Filesystem.get_files_recursively(traces_path))
     print(f"Found {len(files)} files to process.")
@@ -52,10 +52,15 @@ def main(date: str, threads: int):
     parsed_workdir = workdir / "parsed"
     parsed_workdir.mkdir(parents=True, exist_ok=True)
 
+    # Process files in parallel
+    files_chunked = [
+        files[i: i + threads] for i in range(0, len(files), threads)
+    ]
+
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [
-            executor.submit(handle_file, file_path, parsed_workdir)
-            for file_path in files
+            executor.submit(process_chunk, chunk, parsed_workdir)
+            for chunk in files_chunked
         ]
 
         # Wait for all futures to complete
@@ -69,8 +74,8 @@ def main(date: str, threads: int):
     output_file = output_dir / f"{date}.zip"
 
     parsed_workdir = parsed_workdir.resolve()
-    os.chdir(parsed_workdir.parent)
-    os.system(f"zip -qr {output_file.absolute()} {parsed_workdir.name}")
+    os.chdir(parsed_workdir)
+    os.system(f"zip -qr ../../{output_file} *")
 
     print("Done!")
 
@@ -81,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--threads",
         type=int,
-        default=4,
+        default=8,
         help="Number of threads to use for processing files",
     )
     args = parser.parse_args()

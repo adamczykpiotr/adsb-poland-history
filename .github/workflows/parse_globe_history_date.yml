@@ -1,0 +1,54 @@
+name: Parse single day from `adsblol/globe_history_202*`
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date in ISO 8601 format (YYYY-MM-DD)'
+        required: true
+  repository_dispatch:
+    types: [ trigger-parse-globe-history-date ]
+
+permissions:
+  contents: write
+
+jobs:
+  parse_globe_history_date:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Set date
+        id: set-date
+        run: |
+          if [ -z "${{ github.event.client_payload.date }}" ]; then
+              DATE="${{ github.event.inputs.date }}"
+          else
+              DATE="${{ github.event.client_payload.date }}"
+          fi
+          
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+
+      - name: Setup Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Install project
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run app
+        run: poetry run python -u -m adsb_poland_history ${{ steps.set-date.outputs.date }} --threads=4
+
+      - name: Create GitHub Release with output artifact
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          tag_name: ${{ steps.set-date.outputs.date }}
+          name: History for ${{ steps.set-date.outputs.date }}
+          body: Automatic release based on adsblol/globe_history_202* for ${{ steps.set-date.outputs.date }}.
+          files: output/${{ steps.set-date.outputs.date }}.zip
+          token: ${{ secrets.RELEASE_TOKEN }}
