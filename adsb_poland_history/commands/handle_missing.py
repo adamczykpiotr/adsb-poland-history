@@ -26,7 +26,7 @@ def handle_missing_dates_command(arguments: argparse.Namespace):
     if arguments.limit is not None:
         missing_dates = missing_dates[: arguments.limit]
 
-    print("Dispatching events for missing {len(missing_dates)} dates...")
+    print(f"Dispatching events for missing {len(missing_dates)} dates...")
 
     for date in missing_dates:
         try:
