@@ -42,15 +42,27 @@ class GithubClient:
                 return False
             raise
 
+    def get_release_by_tag(self, repo: str, tag: str) -> dict:
+        url = f"{self.GITHUB_API_BASE_URL}/repos/{repo}/releases/tags/{tag}"
+        response = requests.get(url, headers=self._provide_headers())
+        response.raise_for_status()
+        return response.json()
+
+    def delete_release(self, repo: str, release_id: int) -> None:
+        url = f"{self.GITHUB_API_BASE_URL}/repos/{repo}/releases/{release_id}"
+        response = requests.delete(url, headers=self._provide_headers())
+        response.raise_for_status()
+
+    def delete_tag(self, repo: str, tag: str) -> None:
+        url = f"{self.GITHUB_API_BASE_URL}/repos/{repo}/git/refs/tags/{tag}"
+        requests.delete(url, headers=self._provide_headers())
+
     def dispatch_event(self, repo, event_type: str, payload: dict) -> None:
         url = f"{self.GITHUB_API_BASE_URL}/repos/{repo}/dispatches"
-        headers = self._provide_headers()
-        headers["Accept"] = "application/vnd.github.v3+json"
-
         response = requests.post(
             url,
             json={"event_type": event_type, "client_payload": payload},
-            headers=headers,
+            headers=self._provide_headers(),
         )
         response.raise_for_status()
 
