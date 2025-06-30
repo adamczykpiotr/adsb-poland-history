@@ -44,11 +44,14 @@ jobs:
         run: poetry install --no-interaction --no-ansi
 
       - name: Run app
+        id: run-app
         run: poetry run python -u -m adsb_poland_history parse ${{ steps.set-date.outputs.date }} --threads=8
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        continue-on-error: true
 
       - name: Create GitHub Release with output artifact
+        if: steps.run-app.outcome == 'success'
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           tag_name: ${{ steps.set-date.outputs.date }}
