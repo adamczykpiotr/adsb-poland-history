@@ -59,7 +59,7 @@ def parse(arguments: argparse.Namespace):
     parsed_workdir.mkdir(parents=True, exist_ok=True)
 
     # Process files in parallel
-    files_chunked = [files[i: i + threads] for i in range(0, len(files), threads)]
+    files_chunked = [files[i : i + threads] for i in range(0, len(files), threads)]
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [
