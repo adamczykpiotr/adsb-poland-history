@@ -16,13 +16,14 @@ current_repo_name = "adamczykpiotr/adsb-poland-history"
 
 def process_chunk(file_paths: list[Path], output_dir: Path):
     for file_path in file_paths:
-        parsed = EntryParser.parse_file(file_path)
-        file_path.unlink(missing_ok=True)
+        try:
+            parsed = EntryParser.parse_file(file_path)
+            if parsed is None:
+                continue
 
-        if parsed is None:
-            continue
-
-        Filesystem.save_entry(parsed, parsed[EntryParser.ICAO_KEY], output_dir)
+            Filesystem.save_entry(parsed, parsed[EntryParser.ICAO_KEY], output_dir)
+        finally:
+            file_path.unlink(missing_ok=True)
 
 
 def parse(arguments: argparse.Namespace):
@@ -60,7 +61,7 @@ def parse(arguments: argparse.Namespace):
     parsed_workdir.mkdir(parents=True, exist_ok=True)
 
     # Process files in parallel
-    files_chunked = [files[i: i + threads] for i in range(0, len(files), threads)]
+    files_chunked = [files[i : i + threads] for i in range(0, len(files), threads)]
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [
