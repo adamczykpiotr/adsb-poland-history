@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import argparse
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 from adsb_poland_history.helpers.downloader import Downloader
@@ -8,6 +9,9 @@ from adsb_poland_history.helpers.filesystem import Filesystem
 from adsb_poland_history.helpers.github_client import GithubClient
 from adsb_poland_history.parsing.entry_parser import EntryParser
 from adsb_poland_history.sourcing.adsb_globe_history import AdsbGlobeHistory
+
+github_token = os.getenv("GITHUB_TOKEN")
+current_repo_name = "adamczykpiotr/adsb-poland-history"
 
 
 def process_chunk(file_paths: list[Path], output_dir: Path):
@@ -21,7 +25,10 @@ def process_chunk(file_paths: list[Path], output_dir: Path):
         Filesystem.save_entry(parsed, parsed[EntryParser.ICAO_KEY], output_dir)
 
 
-def main(date: str, threads: int):
+def parse(arguments: argparse.Namespace):
+    date = arguments.date  # type: str
+    threads = arguments.threads  # type: int
+
     output_dir = Path("output")
     workdir = Path("workdir")
 
@@ -48,14 +55,11 @@ def main(date: str, threads: int):
     files = list(Filesystem.get_files_recursively(traces_path))
     print(f"Found {len(files)} files to process.")
 
-    # Using a simple thread pool to process files concurrently
     parsed_workdir = workdir / "parsed"
     parsed_workdir.mkdir(parents=True, exist_ok=True)
 
     # Process files in parallel
-    files_chunked = [
-        files[i: i + threads] for i in range(0, len(files), threads)
-    ]
+    files_chunked = [files[i: i + threads] for i in range(0, len(files), threads)]
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [
@@ -63,7 +67,6 @@ def main(date: str, threads: int):
             for chunk in files_chunked
         ]
 
-        # Wait for all futures to complete
         for future in futures:
             future.result()
 
@@ -80,19 +83,61 @@ def main(date: str, threads: int):
     print("Done!")
 
 
+def find_missing_dates(arguments: argparse.Namespace):
+    year = arguments.year  # type: int | None
+
+    start_date = datetime(year, 1, 1)
+    end_date = datetime(year, 12, 31)
+    delta = timedelta(days=1)
+
+    github_client = GithubClient(github_token)
+    existing_tags = github_client.get_all_tags(current_repo_name)
+    missing_dates = []
+    while start_date <= end_date:
+        tag_name = start_date.strftime("%Y-%m-%d")
+        if tag_name not in existing_tags:
+            missing_dates.append(tag_name)
+        start_date += delta
+
+    print(f"Found {len(missing_dates)} missing dates for year {year}.")
+
+    if arguments.limit is not None:
+        missing_dates = missing_dates[: arguments.limit]
+
+    print("Dispatching events for missing {len(missing_dates)} dates...")
+
+    for date in missing_dates:
+        try:
+            github_client.dispatch_event(
+                current_repo_name, "trigger-parse-globe-history-date", {"date": date}
+            )
+        except Exception as e:
+            print(f"Failed to dispatch event for {date}: {e}")
+
+    print("Done!")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process ADS-B Poland history data.")
-    parser.add_argument("date", type=str, help="Date in YYYY-MM-DD format")
-    parser.add_argument(
-        "--threads",
-        type=int,
-        default=8,
-        help="Number of threads to use for processing files",
-    )
-    args = parser.parse_args()
-    if not args.date:
-        raise ValueError("Date argument is required in YYYY-MM-DD format.")
-    if args.threads <= 0:
-        raise ValueError("Threads argument must be a positive integer.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-    main(args.date, args.threads)
+    # Parse command
+    parse_parser = subparsers.add_parser(
+        "parse", help="Parse ADS-B data for a given date"
+    )
+    parse_parser.add_argument("date", type=str, help="Date in YYYY-MM-DD format")
+    parse_parser.add_argument(
+        "--threads", type=int, default=8, help="Number of threads to use"
+    )
+    parse_parser.set_defaults(func=parse)
+
+    # Find missing tags command
+    find_parser = subparsers.add_parser("handle-missing", help="Handle missing dates")
+    find_parser.add_argument("year", default=None, type=int, help="Year to check")
+    find_parser.add_argument(
+        "--limit", type=int, default=None, help="Limit number of dates to process"
+    )
+    find_parser.set_defaults(func=find_missing_dates)
+
+    args = parser.parse_args()
+    args.func(args)

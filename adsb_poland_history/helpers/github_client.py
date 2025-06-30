@@ -4,6 +4,7 @@ import requests
 
 
 class GithubClient:
+    ENV_KEY = "GITHUB_TOKEN"
     GITHUB_API_BASE_URL = "https://api.github.com"
     MAX_ENTRIES_PER_PAGE = 100
 
@@ -40,6 +41,18 @@ class GithubClient:
             if e.response.status_code == 404:
                 return False
             raise
+
+    def dispatch_event(self, repo, event_type: str, payload: dict) -> None:
+        url = f"{self.GITHUB_API_BASE_URL}/repos/{repo}/dispatches"
+        headers = self._provide_headers()
+        headers["Accept"] = "application/vnd.github.v3+json"
+
+        response = requests.post(
+            url,
+            json={"event_type": event_type, "client_payload": payload},
+            headers=headers,
+        )
+        response.raise_for_status()
 
     def _get_all_entries(self, url: str) -> list[dict]:
         combined_entries = []

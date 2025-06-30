@@ -1,0 +1,45 @@
+name: Dispatch events for days missing releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Full year (YYYY)'
+        required: false
+  schedule:
+    - cron: '0 */6 * * *'
+
+
+jobs:
+  dispatch_missing_dates:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Set year
+        id: set-year
+        run: |
+          if [ -z "${{ github.event.inputs.year }}" ]; then
+              YEAR=$(date +%Y)
+          else
+              YEAR="${{ github.event.inputs.year }}"
+          fi
+          
+          echo "year=$YEAR" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Set up Python
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Setup Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Install project
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run app
+        run: poetry run python -u -m adsb_poland_history handle-missing ${{ steps.set-year.outputs.year }} --limit=100
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
