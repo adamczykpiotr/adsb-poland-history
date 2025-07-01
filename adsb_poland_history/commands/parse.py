@@ -40,7 +40,8 @@ def parse_command(arguments: argparse.Namespace):
     all_sources = AdsbGlobeHistory(github_client).get_source_files()
     day_source = all_sources.get(date)
     if not day_source:
-        raise ValueError(f"No source files found for date {date}.")
+        print(f"No source files found for date {date}.")
+        return
 
     # Download source files
     workdir.mkdir(parents=True, exist_ok=True)
@@ -57,7 +58,7 @@ def parse_command(arguments: argparse.Namespace):
     parsed_workdir.mkdir(parents=True, exist_ok=True)
 
     # Process files in parallel
-    files_chunked = [files[i : i + threads] for i in range(0, len(files), threads)]
+    files_chunked = [files[i: i + threads] for i in range(0, len(files), threads)]
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [
