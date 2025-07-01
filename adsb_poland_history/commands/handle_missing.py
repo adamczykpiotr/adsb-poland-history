@@ -34,6 +34,7 @@ def handle_missing_dates_command(arguments: argparse.Namespace):
 
     for date in missing_dates:
         try:
+            print(f"Dispatching event for {date}...")
             github_client.dispatch_event(
                 CURRENT_REPO_NAME, "trigger-parse-globe-history-date", {"date": date}
             )
