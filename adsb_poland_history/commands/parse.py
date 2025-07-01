@@ -19,6 +19,8 @@ def process_chunk(file_paths: list[Path], output_dir: Path):
                 continue
 
             Filesystem.save_entry(parsed, parsed[EntryParser.ICAO_KEY], output_dir)
+        except Exception as e:
+            print(f"Error processing file {file_path}: {e}")
         finally:
             file_path.unlink(missing_ok=True)
 
