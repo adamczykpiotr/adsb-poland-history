@@ -8,8 +8,12 @@ from adsb_poland_history.helpers.github_client import GithubClient
 def handle_missing_dates_command(arguments: argparse.Namespace):
     year = arguments.year  # type: int | None
 
+    if year is None:
+        year = datetime.now().year
+
     start_date = datetime(year, 1, 1)
-    end_date = datetime(year, 12, 31)
+    end_date = datetime.now() if year >= datetime.now().year else datetime(year, 12, 31)
+
     delta = timedelta(days=1)
 
     github_client = GithubClient(GITHUB_TOKEN)
