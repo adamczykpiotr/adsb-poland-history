@@ -37,6 +37,12 @@ class AdsbGlobeHistory:
                 )  # Convert YYYY.MM.DD to YYYY-MM-DD
 
                 files = line.split(",")
+
+                # Some releases are broken and have both .tar and .tar.aa, .tar.ab files.
+                if len(files) > 1:
+                    # Return only multipart archives
+                    files = [f for f in files if not f.endswith(".tar")]
+
                 source_files[date] = files
 
         return source_files
