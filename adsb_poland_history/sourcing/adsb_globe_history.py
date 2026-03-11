@@ -10,6 +10,7 @@ class AdsbGlobeHistory:
         "adsblol/globe_history_2023",
         "adsblol/globe_history_2024",
         "adsblol/globe_history_2025",
+        "adsblol/globe_history_2026",
     ]
 
     def __init__(self, github_client: GithubClient):
