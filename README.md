@@ -80,4 +80,5 @@ export interface ParsedFlight {
 * [adsblol/globe\_history\_2023](https://github.com/adsblol/globe_history_2023) for the best open-source aviation dataset of 2023
 * [adsblol/globe\_history\_2024](https://github.com/adsblol/globe_history_2024) for the best open-source aviation dataset of 2024
 * [adsblol/globe\_history\_2025](https://github.com/adsblol/globe_history_2025) for the best open-source aviation dataset of 2025
+* [adsblol/globe\_history\_2025](https://github.com/adsblol/globe_history_2026) for the best open-source aviation dataset of 2026
 * And last (you guessed it!), [adsblol](https://github.com/adsblol) for being the best in general!
